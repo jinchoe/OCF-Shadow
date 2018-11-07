@@ -1,141 +1,70 @@
-1. Original Device Onboarding 
-
-1.1) Original Device Ownership 
+1. Original Device Onboarding
+1.1) Original Device Ownership
 OBT to Original Device
 Take Ownership of Original Device using any OTM
 
-1.2) "oic.wk.shadow.conf" Discovery 
-OBT discovers "oic.wk.shadow.conf" of Original Device  
-
-Case 1. pre-defined URI /oic/shadow/conf  
-
--> Multicast GET /oic/shadow/conf
-<- GET response (OBT retrieves address of Original Device from UDP packet)
-
-Case 2. non-pre-defined URI 
-
--> Multicast GET /oic/res?rt=oic.wk.shadow.conf 
+1.2) Discovery of oic.wk.shadowconf on Original Device
+OBT discovers Original Device
+-> Multicast GET /oic/res?rt=oic.wk.shadow.conf
 <- GET response from /oic/res (OBT retrieves URI of "oic.wk.shadow.conf" from the payload in UDP packet.)
--> Unicast GET "oic.wk.shadow.conf" 
+-> Unicast GET "oic.wk.shadow.conf"
 <- GET response from "oic.wk.shadow.conf"
 
 {
    "rt": ["oic.wk.shadow.conf"],
    "if": ["oic.if.rw", "oic.if.baseline"],
-   "ssdi": [
-     {
-       "si": "",
-       "sgr": "",
-       "sgi": false,
-       "sdi": "",      
-       "sde": [""],
-       "isSynched": false,      
-       "cred": ""
-     }
-   ]
+   "ssdi": {
+            "si": "",
+            "sgr": "",
+            "sgi": false,
+            "sdi": "",     
+            "sde": [""],
+            "isSynched": false,   
+            "lastSyncTimestamp": 0 
+           }
 }
 
-1.3) Shadow Service Information provision 
-OBT to Original Device (the information to generate a Shadow Device)  
+1.3) Provision Shadow Service Information
+OBT to Original Device (the information to generate a Shadow Device) 
 -> POST /oic/shadow/conf
 
 Payload:
 
 {
-   "ssdi": [
-     {
-       "si": "Shadow_Service_ID",
+   "ssdi": {
+       "si": "dc70373c-1e8d-4fb3-962e-017eaa863989",
        "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
        "sgi": true,
-       "sdi": "",      
+       "sdi": "",     
        "sde": [""],
-       "isSynched": false,      
-       "cred": ""
+       "isSynched": false,     
+       "lastSyncTimestamp": 0
      }
-   ]
 }
-
-[Jin comment] 
-- ssdi (Shadow Service and Device Information)
 
 <- OK
 
 
-1.4) Security credential provision 
-OBT to Original Device 
-If required, provision credential to Original Device for accessing
-the Shadow Service
--> POST /oic/shadow/conf
+1.4) Security credential provision
+OBT to Original Device
+If required, provision credential to Original Device for accessing the Shadow Service, using existing procedures.
 
-Payload:
-
-{
-   "ssdi": [
-     {
-       "si": "Shadow_Service_ID",
-       "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
-       "sgi": true,
-       "sdi": "",      
-       "sde": [""],
-       "isSynched": false,      
-       "cred": "security credential"
-     }
-   ]
-}
-
-[Jin comment] 
-- This is the security credential 
-  with which the original Device communicate 
-  with the Shadow Service identified by "si" value. 
-- Mostly it would be better to provide the security credential 
-  in 1.3)  
-
-<- OK
-
-[Jin comment]
-- "oic.wk.shadow.conf" is modifed as below 
-
-{
-   "rt": ["oic.wk.shadow.conf"],
-   "if": ["oic.if.rw", "oic.if.baseline"],
-   "ssdi": [
-     {
-       "si": "Shadow_Service_ID",
-       "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
-       "sgi": true,
-       "sdi": "",      
-       "sde": [""],
-       "isSynched": false,      
-       "cred": "security credential"
-     }
-   ]
-}
-
-2. Shadow Device Generation 
-
-2.1) Request to generate a Shadow Device 
+2. Shadow Device Generation
+2.1) Request to generate a Shadow Device
 Original Device to Shadow Service
 -> POST /oic/shadow/gen
 
 Payload:
 
 {
-   "di": "Original_Device_ID", 
    "ttl": 600,
+   "sre": [{"ep": "coaps://[fe80::b1e6]:55555"}],
+   "dre": [{"ep": "coaps://[fe80::b1e6]:55555"}],
+   "timestamp": 1541304408,
    "resources": [
      {
-       "href": "/oic/shadow/sync",
-       "eps": [{"ep": "coaps://[fe80::b1e6]:55555"}],
-       "p": {"bm": 1}, 
-       "rep": {
-         "rt": ["oic.wk.shadow.sync"],
-         "if": ["oic.if.rw", "oic.if.baseline"]
-       }
-     }, 
-     {
        "href": "/temperature",
-       "eps": [{"ep": "coaps://[fe80::b1e6]:55555"}],
-       "p": {"bm": 1}, 
+       "p": {"bm": 1},
        "rep": {
          "rt": ["oic.r.temperature"],
          "if": ["oic.if.s", "oic.if.baseline"],
@@ -145,8 +74,7 @@ Payload:
      },
      {
        "href": "/oic/d",
-       "eps": [{"ep": "coaps://[fe80::b1e6]:55555"}], 
-       "p": {"bm": 1}, 
+       "p": {"bm": 1},
        "rep": {
          "rt": ["oic.wk.d", "oic.d.sensor"],
          "if": ["oic.if.s", "oic.if.baseline"],
@@ -160,50 +88,34 @@ Payload:
    ]
 }
 
-[Jin comment]
-- The POST Request carries the Endpoint of each original Resource.  
-- It also carries the indication (i.e. "p" value) 
-  how the Resources would be exposed (discoverable & observable)
-
-Upon granting the Request, 
-Shadow Service generates a Shadow Device with 
-- the Resources in the payload 
-- the mandatory Core & Security Resources (e.g., /oic/res, /oic/sec/doxm)
-- the mandatory Resource for Shadow Device 
-  . oic.wk.shadow.info  
-  . oic.wk.shadow.sync 
-  
-The newly created Shadow Device has "oic.wk.shadow.info" as below 
+The newly created Shadow Device has "oic.wk.shadow.info" as below
 
 {
   "rt": ["oic.wk.shadow.info"],
   "if": ["oic.if.rw", "oic.if.baseline"],
-  "odi": "original_Device_ID", 
-  "ode": ["coaps://[fe80::b1e6]:55555"], 
+  "odi": "original_Device_ID",
+  "ode": ["coaps://[fe80::b1e6]:55555"],
   "isSynched": false
-}  
+  "lastSyncTimestamp": 1541304408
+}
 
-[Jin comment]
-- "ode" value is the Endpoint of /oic/res of the original Device. 
-- Shadow Device has the URI (with Endpoint) of "oic.wk.shadow.sync" of its original Device  
-  and keeps the URI in the Synchronization Table 
-  but it doesn't have to expose the information in "oic.wk.shadow.info"  
-  
-2.2) Response to Shadow Device Generation   
-Shadow Service to Original Device   
+(lastSyncTimestamp is merely initialized here to the timestamp it received in the request to shadowgen.)
+
+2.2) Response to Shadow Device Generation  
+Shadow Service to Original Device 
 
 <- OK
 
 Payload:
-
-Description:
-[
+{
+  "si": <Shadow Device UUID>,
+  "links": [
   { "href": "/oic/shadow/sync",
     "anchor": "ocf://Shadow_Device_di",
     "rt": ["oic.wk.shadow.sync"],
     "if": ["oic.if.rw", "oic.if.baseline"],
     "p": {"bm": 0},
-    "eps": [{"ep": "coaps://[fe80::b1d6]:2222"}]
+    "eps": [{"ep": "coaps://[fe80::b1d6]:4444"}]
   },
   { "href": "/oic/res",
     "anchor": "ocf://Shadow_Device_di",
@@ -213,138 +125,100 @@ Description:
     "eps": [{"ep": "coaps://[fe80::b1d6]:2222"}]
   }
 ]
+}
 
-[Jin comment]
-- The POST Response carried the Endpoint of "oic.wk.shadow.sync" & "/oic/res"
-  of the Shadow Device. 
-- If needed, the original Device or its OBT can RETRIEVE /oic/res 
-  to acquire all the Links of its Shadow Device.   
-- The Source of POST Response should be Shadow Service, not Shadow Device 
-  because the POST Request destination is Shadow Service. 
-  
-Upon receiving the Response, the original Device modifies 
-its "oic.wk.shadow.conf" with the information in the payload as below 
+Upon receiving the Response, the original Device updates
+its "oic.wk.shadow.conf" with the information in the payload as below:
 
 {
    "rt": ["oic.wk.shadow.conf"],
    "if": ["oic.if.rw", "oic.if.baseline"],
-   "ssdi": [
-     {
+   "ssdi": {
        "si": "Shadow_Service_ID",
        "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
        "sgi": true,
-       "sdi": "Shadow_Device_di",      
+       "sdi": "Shadow_Device_di",     
        "sde": ["coaps://[fe80::b1d6]:2222"],
-       "isSynched": false,      
-       "cred": "security credential"
+       "isSynched": false,     
+       "lastSyncTimestamp": 1541304408
      }
-   ]
-}  
+}
 
-[Jin comment]
-- "sde" value is the Endpoint of /oic/res of the Shadow Device. 
-- The original Device has the URI (with Endpoint) of "oic.wk.shadow.sync" of its Shadow Device  
-  and keeps the URI in the Synchronization Table 
-  but it doesn't have to expose the information in "oic.wk.shadow.info"    
-  
-3. Shadow Device Onboarding 
+(Upon receiving this confirmation of Shadow Device creation, the Original Device additionally sets its record of lastSyncTimestamp
+to match the timestamp it first sent out in the shadowgen request payload.)
 
-3.1) Shadow Device Information acquisition 
-OBT to Original Device 
-
--> GET /oic/shadows/conf 
+3. Shadow Device Onboarding
+3.1) Acquire information about Shadow Device
+OBT to Original Device
+-> GET /oic/shadows/conf
 <- OK
 
 {
-   "ssdi": [
-     {
+   "ssdi": {
        "si": "Shadow_Service_ID",
        "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
        "sgi": true,
-       "sdi": "Shadow_Device_di",      
+       "sdi": "Shadow_Device_di",     
        "sde": ["coaps://[fe80::b1d6]:2222"],
-       "isSynched": false,      
-       "cred": "security credential"
+       "isSynched": false,  
+       "lastSyncTimestamp": 1541304408  
      }
-   ]
-} 
+}
 
-
-3.2) Shadow Device Ownership 
+3.2) Shadow Device Ownership
 OBT to Shadow Device
-Take Ownership of Shadow Device (request directed to "coaps://[fe80::b1d6]:2222")
+Take Ownership of Shadow Device
+(Discover SVRs (Secure Virtual Resources) via /oic/res
+located at endpoint "coaps://[fe80::b1d6]:2222" and
+perform OTM sequence)
 
-[Jin comment]
-- The Endpoint above may work for /oic/sec/doxm or 
-  the OBT sends GET /oic/res to acquire necessary Endpoint. 
+3.3) Credential/ACL Provisioning
+OBT provisions both the Original Device and Shadow Device to establish secure communications
 
-3.3) Security credential provision (by OBT to original & Shadow Device) 
-OBT constructs appropriate credential (such as pairwise symmetric key)
+OBT constructs appropriate credential (e.g. pairwise symmetric key)
 
+OBT to Shadow Device
 -> Provision credential to Shadow Device using existing procedures
 citing Original Device's di as subjectuuid.
 <- OK
 
--> Provision ACE in Shadow Device's acl2 giving Original Device access to /oic/shadow/sync.
+-> Provision ACE in Shadow Device's acl2 giving Original Device access to its /oic/shadow/sync.
 <- OK
 
 OBT to Original Device
 -> Provision credential to Original Device using existing procedures
 citing Shadow Device's di as subjectuuid.
-
 <- OK
 
-[Jin comment & Question]
-- I assume the security credential is to communicate 
-  between the original Device & its Shadow Device. 
-- Where to put that credential? 
-  For the Shadow Device, we may put it in /oic/sec/cred 
-  but for the original Device, where will we put 
-  if it doesn't have /oic/sec/cred 
-  Shall we mandate /oic/sec/cred even for the original Device, 
-  i.e., OCF Thin Device? 
-  
-3.4) Sync activation   
+-> Provision ACE in Original Device's acl2 giving Shadow Device access to its
+/oic/shadow/sync.
+<- OK
+
+3.4) Activate Synchronization  
+Now that the Original and Shadow Devices are linked via the OBT, they are fully set up to synchronize their states securely between each other
+whenever required.
+
 OBT to Original Device
-
--> POST /oic/shadow/conf 
+-> POST /oic/shadow/conf
 
 Payload:
 
 {
-   "ssdi": [
-     {
-       "si": "Shadow_Service_ID",
-       "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
-       "sgi": true,
-       "sdi": "Shadow_Device_di",      
-       "sde": ["coaps://[fe80::b1d6]:2222"],
-       "isSynched": true,      
-       "cred": "security credential"
+
+   "ssdi": {
+       "isSynched": true,     
      }
-   ]
-} 
+}
 
 <- OK
 
-[Jin comment & Question]
-- Because we update an item in an array, 
-  the POST payload for partial UPDATE is cumbersome. 
-- For more efficient (partial UPDATE), 
-  IETF defined a new method "PATCH" in RFC 8132 
-  and I proposed it in OCF as below   
-https://workspace.openconnectivity.org/apps/org/workgroup/architecture_tg/document.php?document_id=7017  
-- Unfortunately those are not adopted in OCF 
-  and we are stuck with cumbersome payload. 
-  
-OBT to Shadow Device 
-
--> POST /oic/shadow/info 
+OBT to Shadow Device
+-> POST /oic/shadow/info
 
 Payload:
 
 {
-  "isSynched": true      
+  "isSynched": true     
 }
 
 <- OK
@@ -361,35 +235,40 @@ State of /oic/shadow/conf in Original Device
        "si": "Shadow_Service_ID",
        "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
        "sgi": true,
-       "sdi": "Shadow_Device_di",      
+       "sdi": "Shadow_Device_di",     
        "sde": ["coaps://[fe80::b1d6]:2222"],
-       "isSynched": true,      
-       "cred": "security credential"
+       "isSynched": true,     
+       "lastSyncTimestamp": 1541304408
      }
    ]
-} 
- 
+}
+
 State of /oic/shadow/info on Shadow Device
 
 {
   "rt": ["oic.wk.shadow.info"],
   "if": ["oic.if.rw", "oic.if.baseline"],
-  "odi": "original_Device_ID", 
-  "ode": ["coaps://[fe80::b1e6]:55555"], 
+  "odi": "original_Device_ID",
+  "ode": ["coaps://[fe80::b1e6]:55555"],
   "isSynched": true
-} 
+  "lastSyncTimestamp": 1541304408        
+}
 
 **
 
-4. Shadow Device Synchronization  
-4.1) 
+4. Shadow Device Synchronization 
+4.1) Original Device synchronizing with the Shadow Device
+
+Original Devices notices a change in resource state (event from sensor, etc.) at timestamp 1541305500.
+It updates its sync resource, and kicks off a synchronization request to the Shadow Device.
+
 Original Device to Shadow Device
 -> POST /oic/shadow/sync (request sent to "coaps://[fe80::b1d6]:44444")
 
 Payload:
+
 {
-  "di": "Original_Device_ID", 
-  "ttl": 600,
+  "timestamp": 1541305500
   "resources": [
     {
       "href": "/temperature",
@@ -398,7 +277,7 @@ Payload:
       }
     },
     {
-      "href": "/oic/d",
+      "href": "/oic/d", 
       "rep": {
         "n": "myLivingRoomTemperatureSensor"
       }
@@ -406,16 +285,232 @@ Payload:
   ]
 }
 
+The Shadow Device notes that the timestamp in the request is > that its lastSyncTimestamp.
+The Shadow Device updates its Shadowed resources’ states accordingly.
+
+The Shadow Device updates its lastSyncTimestamp in its  /oic/shadow/info resource to:
+
+{
+  "rt": ["oic.wk.shadow.info"],
+  "if": ["oic.if.rw", "oic.if.baseline"],
+  "odi": "original_Device_ID",
+  "ode": ["coaps://[fe80::b1e6]:55555"],
+  "isSynched": true
+  "lastSyncTimestamp": 1541305500        
+}
+
+The Shadow Device's sync resource responds with the entire representations of all Shadowed resources
+while also echoing back the timestamp.
+
 <- OK
 
-[Jin comments]
-- As you wrote down, Original Device inspects its /oic/shadow/conf 
-  and fires off the following request to all Shadow Devices 
-  described in objects that have isSynched:true
-  It extracts the URI of "oic.shadow.sync" from Synchronization Table. 
+Payload:
 
-4.2) 
-Shadow Device to Original Device 
-- POST /oic/shadow/sync 
+{
+  "timestamp": 1541305500
+   "resources": [
+     {
+       "href": "/temperature",
+       "p": {"bm": 1},
+       "rep": {
+         "rt": ["oic.r.temperature"],
+         "if": ["oic.if.s", "oic.if.baseline"],
+         "temperature": 25,
+         "units": "C"
+       }
+     },
+     {
+       "href": "/oic/d",
+       "p": {"bm": 1},
+       "rep": {
+         "rt": ["oic.wk.d", "oic.d.sensor"],
+         "if": ["oic.if.s", "oic.if.baseline"],
+         "di": "ec70373c-1e8d-4fb3-962e-017eaa863989",
+         "icv": "ocf.2.0.0",
+         "dmv": "ocf.res.1.0.0",
+         "dmn": "foo labs",
+         "dmno": "bar product xxx"
+         "n": "myLivingRoomTemperatureSensor"
+       }
+     }
+   ]
+}
 
-  
+The Original Device notices that the timestamp in the response from the Shadow Device matches the timestamp recorded
+in its sync resource. So, it does not bother updating any values.
+
+The Original Device however updates its lastSyncTimestamp in its oic.wk.shadowconf resource. Its updated state is:
+
+{
+   "rt": ["oic.wk.shadow.conf"],
+   "if": ["oic.if.rw", "oic.if.baseline"],
+   "ssdi": [
+     {
+       "si": "Shadow_Service_ID",
+       "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
+       "sgi": true,
+       "sdi": "Shadow_Device_di",     
+       "sde": ["coaps://[fe80::b1d6]:2222"],
+       "isSynched": true,     
+       "lastSyncTimestamp": 1541305500
+     }
+   ]
+}
+
+4.2) Shadow Device synchronizes with the Original Device
+
+OCF Client X issues a POST request to /temperature on the Shadow Device resulting in a change in state.
+
+OCF Client X POST /temperature on the Shadow Device at timestamp
+
+1541307000
+
+Payload:
+
+{
+    "temperature": 45
+}
+
+<- ACK (just acknowledgement of request, but not confirmation.
+In CoAP this is called a separate response (as against piggybacked
+response))
+
+Shadow Device updates its sync resource with the new state of /temperature at timestamp 1541307000.
+
+Shadow Device DOES NOT update state of /temperature resource until synchronization is complete and confirmed.
+
+It knows this because timestamp on the sync resource is > lastSyncTimestamp in its /oic/shadow/info.
+
+So, for e.g. if during this time some OCF Client Y issues:
+
+GET /temperature on Shadow Device
+<- OK
+
+Payload:
+
+{
+    "temperature": 25
+}
+
+The Shadowed resource returns the old value.
+
+Shadow Device sends a synchrnoization request to the Original
+Device
+
+POST /oic/shadow/sync
+
+Payload:
+
+{
+  "timestamp": 1541307000
+  "resources": [
+    {
+      "href": "/temperature",
+      "rep": {
+        "temperature": 45
+     }
+  ]
+}
+
+The Original Device notices that the timestamp recorded in its sync resource is behind the timestamp in the sync request and
+proceeds to update state for all shadowed resources.
+
+At the same time the Original Device updates its lastSyncTimestamp for the Shadow Device as recorded in the shadowconf resource:
+
+{
+   "rt": ["oic.wk.shadow.conf"],
+   "if": ["oic.if.rw", "oic.if.baseline"],
+   "ssdi": [
+     {
+       "si": "Shadow_Service_ID",
+       "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
+       "sgi": true,
+       "sdi": "Shadow_Device_di",     
+       "sde": ["coaps://[fe80::b1d6]:2222"],
+       "isSynched": true,     
+       "lastSyncTimestamp": 1541307000
+     }
+   ]
+}
+ 
+The Original Device then responds with its updated state and timestamp (matching that of the request) along with entire
+representations of all synched resources.
+
+<- OK
+
+Payload:
+
+{
+  "timestamp": 1541307000
+   "resources": [
+     {
+       "href": "/temperature",
+       "p": {"bm": 1},
+       "rep": {
+         "rt": ["oic.r.temperature"],
+         "if": ["oic.if.s", "oic.if.baseline"],
+         "temperature": 45,
+         "units": "C"
+       }
+     },
+     {
+       "href": "/oic/d",
+       "p": {"bm": 1},
+       "rep": {
+         "rt": ["oic.wk.d", "oic.d.sensor"],
+         "if": ["oic.if.s", "oic.if.baseline"],
+         "di": "ec70373c-1e8d-4fb3-962e-017eaa863989",
+         "icv": "ocf.2.0.0",
+         "dmv": "ocf.res.1.0.0",
+         "dmn": "foo labs",
+         "dmno": "bar product xxx"
+         "n": "myLivingRoomTemperatureSensor"
+       }
+     }
+   ]
+}
+
+The Shadow Device receives this response and notices that the timestamps match and hence does not alter the sync resource.
+
+Tbe Shadow Device however notices that it needs to update its lastSyncTimestamp in /oic/shadow/info as timestamp in the sync
+resource > lastSyncTimestamp.
+
+Updated ttate of /oic/shadow/info:
+
+{
+  "rt": ["oic.wk.shadow.info"],
+  "if": ["oic.if.rw", "oic.if.baseline"],
+  "odi": "original_Device_ID",
+  "ode": ["coaps://[fe80::b1e6]:55555"],
+  "isSynched": true
+  "lastSyncTimestamp": 1541307000        
+}
+
+After it updates lastSyncTimestamp, it updates the state of its /temperature resource and finally handles all outstanding
+(separate) responses to Clients.
+
+Shadow Device to OCF Client X (separate response in CoAP):
+
+<- OK
+
+Payload:
+
+{
+    "temperature": 45
+}
+
+There may be other corner cases where Original Device has a still newer state for /temperature. Then this is reflected in its response
+to the Shadow Device's request to /oic/shadow/sync. The Shadow Device echoes that state back to Client X and updates its
+timestamp and lastSyncTimestamp. So, this overall framework should handle various corner cases merely by its way of working.
+
+The Original Device and Shadow try to maintain  synchronized states for all synched resources at all times.
+
+One key difference between Original Device and Shadow Device behavior is when a Client updates the state of the Original
+Device's resource via a POST request, that is immediately reflected in the Original Device's resource AND the sync
+resource.
+
+However, when a Client updates state of the Shadow Device's resource via a POST request, the state is updated ONLY in
+the sync resource, and only after a successful synchronization is the new state reflected in its resource and a POST response
+returned to the Client.
+
+ 
