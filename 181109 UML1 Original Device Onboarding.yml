@@ -1,0 +1,118 @@
+@startuml
+
+title __Original Device Onboarding__
+
+|||
+
+participant OBT 
+participant "Original Device"
+participant "Shadow Generation \nResource" 
+participant "Shadow Device" 
+box "Shadow Service" #White
+participant "Shadow Generation \nResource"
+participant "Shadow Device"
+end box
+
+== 1.1) Original Device Ownership Onboarding == 
+
+note over OBT, "Original Device" #Aqua
+OBT takes Ownership of Original Device using any OTM. 
+endnote  
+
+OBT <-> "Original Device": Onboarding Procedure
+
+note over OBT, "Original Device" 
+OBT performs existing onboarding procedures.
+endnote  
+
+== 1.2) "oic.wk.shadow.conf" Discovery == 
+
+note over "OBT", "Original Device" #Aqua
+OBT finds "oic.wk.shadow.conf" of Original Device. 
+endnote 
+
+OBT <-> "Original Device": Multicast GET /oic/res  
+
+note over "OBT", "Original Device" 
+OBT preforms multicast discovery 
+w.r.t /oic/res
+endnote
+
+note right of "Original Device" 
+"oic.wk.shadow.conf" status is
+endnote
+
+note right of "Original Device" #ivory
+{
+   "rt": ["oic.wk.shadow.conf"],
+   "if": ["oic.if.rw", "oic.if.baseline"],
+   "si": "",
+   "sgr": "",
+   "sgi": false,
+   "sdi": "",     
+   "sde": [""],
+   "isSynched": false,   
+   "lastSyncTimestamp": 0 
+}
+endnote
+
+OBT -> "Original Device": GET /oic/shadow/conf 
+
+"Original Device" --> OBT: Response with paylaod 
+
+== 1.3) Shadow Service Information provision == 
+
+note over OBT, "Original Device" #Aqua
+OBT provides Original Device via "oic.wk.shadow.conf" 
+the necessary information to generate a Shadow Device. 
+endnote 
+ 
+OBT -> "Original Device": POST /oic/shadow/conf  
+
+note right of "OBT" #ivory
+{
+  "si": "Shadow_Service_ID",
+  "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
+  "sgi": true
+}
+endnote 
+
+note right of "Original Device" 
+Original Device modifies its "oic.wk.shadow.conf". 
+endnote 
+
+"Original Device" --> OBT: Response: Changed 
+
+== 1.4) Security credential provision == 
+
+note over OBT, "Original Device" #Aqua
+If required, OBT provides Original Device the security credential 
+to access the Shadow Service, i.e., "oic.wk.shadow.gen"  
+endnote 
+
+OBT <-> "Original Device": Security credential provision 
+
+note right of "Original Device" 
+"oic.wk.shadow.conf" status is
+endnote
+
+note right of "Original Device" #ivory
+{
+   "rt": ["oic.wk.shadow.conf"],
+   "if": ["oic.if.rw", "oic.if.baseline"],
+   "si": "Shadow_Service_ID",
+   "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
+   "sgi": true, 
+   "sdi": "",     
+   "sde": [""],
+   "isSynched": false,   
+   "lastSyncTimestamp": 0 
+}
+endnote
+ 
+note over OBT, "Original Device" #Aqua
+Original Device has in its "oic.wk.shadow.conf" 
+the necessary information to initiate Shadow Device Generation procedure. 
+endnote 
+
+@enduml
