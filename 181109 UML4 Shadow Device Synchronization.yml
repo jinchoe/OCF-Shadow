@@ -1,0 +1,280 @@
+@startuml
+
+title __Synchronization between Original and Shadow Devices__
+
+|||
+
+participant "Original Device"
+participant "Shadow Device"
+participant "OCF Client" 
+box "Shadow Service" #White
+participant "Shadow Device"
+end box
+participant "OCF Client"
+
+== 4.1) Original Device synchronizing with the Shadow Device == 
+
+"Original Device" -> "Original Device": a change occurs in /temperature
+
+note over "Original Device", "Shadow Device" #Aqua
+Original Device notices a change in resource state (event from
+sensor, etc.) at timestamp 1124000333
+endnote
+
+note right of "Original Device"
+Original Device sends a synchronization message to its Shadow
+Device and directs the request to its "oic.wk.shadow.sync"
+which is currently stored in its internal Synchronization Table
+endnote 
+
+"Original Device" -> "Shadow Device": POST /oic/shadow/sync   
+
+note right of "Original Device" #ivory
+{
+  "di": "Original_Device_ID", 
+  "resources": [
+    {
+      "href": "/temperature",
+      "rep": {
+        "temperature": 25
+      }
+      "timestamp": 11240000333
+    }
+  ]
+} 
+endnote 
+
+note right of "Shadow Device"
+The Shadow Device notes that the timestamp
+11240000333 for /temperature in the request is
+more recent than its own record from 11240000111
+endnote
+
+note right of "Shadow Device"
+The Shadow Device updates its state for /temperature
+with the new timestamp
+endnote
+
+note right of "Shadow Device"
+The Shadow Device updates its lastSyncTimestamp in
+its "oic.wk.shadow.info" resource to 11240000333
+endnote 
+
+note right of "Shadow Device" #ivory 
+{
+  "rt": ["oic.wk.shadow.info"],
+  "if": ["oic.if.rw", "oic.if.baseline"],
+  "odi": "original_Device_ID",
+  "ode": ["coaps://[fe80::b1e6]:55555"],
+  "isSynched": true
+  "lastSyncTimestamp": 1124000333        
+}
+endnote 
+
+note right of "Shadow Device"
+The Shadow Device's "oic.wk.shadow.sync" resource responds with the entire
+representations of all synchronized resources that were referred to in
+the POST /oic/shadow/sync request from the Original Device
+
+In this example, the response covers only the /temperature resource
+
+The response from /oic/shadow/sync also echoes back the updated timestamp for 
+/temperature
+endnote
+
+"Shadow Device" --> "Original Device": Response: Changed  
+
+note left of "Shadow Device" #ivory 
+[
+    {
+       "href": "/temperature",
+       "rep": {
+         "rt": ["oic.r.temperature"],
+         "if": ["oic.if.s", "oic.if.baseline"],
+         "temperature": 25,
+         "units": "C"
+       }
+       "timestamp": 1124000333
+     }
+]
+endnote
+
+note left of "Original Device"
+The Original Device accepts this confirmation and updates lastSyncTimestamp
+in its "oic.wk.shadow.conf" resource to match the most recent timestamp
+of /temperature contained in the response from the Shadow Device's
+/oic/shadow/sync
+endnote 
+
+note left of "Original Device" #ivory 
+{
+   "rt": ["oic.wk.shadow.conf"],
+   "if": ["oic.if.rw", "oic.if.baseline"],
+   "si": "Shadow_Service_ID",
+   "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
+   "sgi": true,
+   "sdi": "Shadow_Device_ID",     
+   "sde": ["coaps://[fe80::b1d6]:2222"],
+   "isSynched": true,     
+   "lastSyncTimestamp": 1124000333
+}
+endnote 
+
+== 4.2) Shadow Device synchronizes with the Original Device == 
+
+note over "Original Device", "Shadow Device" #Aqua
+When a Shadow Device receives an UPDATE Request from a Client, it first echoes the
+update to its Original Device via a synchronization request
+
+Only after confirmation of successful synchronization from the original Device
+does the Shadow Device accept the update and respond to its Client
+endnote  
+
+"OCF Client" -> "Shadow Device": POST /temperature
+note over "Shadow Device", "OCF Client" #Aqua
+Shadow Device receives a POST /temperature request from a Client 
+at timestamp 11240000444
+endnote
+
+note left of "OCF Client" #ivory
+{
+    "temperature": 45
+}
+endnote
+
+note left of "Shadow Device"
+Shadow Device sends a request to the Original Device's "oic.wk.shadow.sync"
+with the new state of /temperature at timestamp 11240000444
+endnote 
+
+"Shadow Device" -> "Original Device": POST /oic/shadow/sync   
+
+note left of "Shadow Device" #ivory
+{
+  "di": "Shadow_Device_ID", 
+  "resources": [
+   {
+      "href": "/temperature",
+      "rep": {
+        "temperature": 45
+     }
+      "timestamp": 11240000444
+    }
+  ]
+}
+endnote 
+
+"Original Device" -> "Original Device": meanwhile a change has occurred in /atmospheric_pressure at 11240000400
+
+note left of "Original Device"
+Original Device receives the synchronization request for /temperature and
+notes that the timestamp recorded in its copy of /temperature (1124000333)
+is behind the timestamp in the request (11240000444) and proceeds to update
+its state for /temperature
+endnote
+
+note left of "Original Device"
+The Original Device further walks through its list of synchronized resources and
+checks their timestamps against its lastSyncTimestamp which is currently at
+1124000333
+
+It notices that the Original Device's resource /atmospheric_pressure has an
+updated state that was recorded at 11240000400 and ahead of lastSyncTimestamp
+endnote
+
+note left of "Original Device"
+The Original Device initiates a response from /oic/shadow/sync to the
+Shadow Device and includes the entire updated representations of both 
+/temperature and /atmospheric_pressure
+
+This illustrates the general use of lastSyncTimestamp
+endnote 
+
+"Original Device" --> "Shadow Device": Response: Changed  
+
+note right of "Original Device" #ivory
+[
+     {
+       "href": "/temperature",
+       "rep": {
+         "rt": ["oic.r.temperature"],
+         "if": ["oic.if.s", "oic.if.baseline"],
+         "temperature": 45,
+         "units": "C"
+       },
+       "timestamp": 11240000444
+     },
+     {
+       "href": "/atmospheric_pressure",
+       "rep": {
+         "rt": ["oic.r.sensor.atmosphericpressure"],
+         "if": ["oic.if.s", "oic.if.baseline"],
+         "atmosphericPressure": 1010.0,
+         "units": "hPa"
+       }
+       "timestamp": 11240000400
+     }
+]
+endnote
+
+note left of "Original Device"
+Original Device updates its lastSyncTimestamp for the Shadow Device as
+recorded in its "oic.wk.shadow.conf" resource
+
+It matches the timestamp of the most recent update among all of its
+synchronized resources, currently at 11240000444
+endnote
+
+note left of "Original Device" #ivory
+{
+   "rt": ["oic.wk.shadow.conf"],
+   "if": ["oic.if.rw", "oic.if.baseline"],
+   "si": "Shadow_Service_ID",
+   "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
+   "sgi": true,
+   "sdi": "Shadow_Device_di",     
+   "sde": ["coaps://[fe80::b1d6]:2222"],
+   "isSynched": true,     
+   "lastSyncTimestamp": 11240000444
+}
+endnote
+
+note right of "Shadow Device"
+Shadow Device receives this response and notices that the timestamp for
+/temperature matches its current record and does not need to update its state
+
+It however catches the update to /atmospheric_pressure and proceeds to update its
+copy of the resource
+endnote 
+
+note right of "Shadow Device"
+Shadow Device updates its lastSyncTimestamp in its "oic.wk.shadow.info" to 11240000444 
+endnote
+
+note right of "Shadow Device" #ivory 
+{
+  "rt": ["oic.wk.shadow.info"],
+  "if": ["oic.if.rw", "oic.if.baseline"],
+  "odi": "original_Device_ID",
+  "ode": ["coaps://[fe80::b1e6]:55555"],
+  "isSynched": true
+  "lastSyncTimestamp": 11240000444        
+}
+endnote 
+
+note right of "Shadow Device"
+Shadow Device handles all outstanding responses to its Clients
+endnote 
+
+"Shadow Device" --> "OCF Client": Response: Changed  
+note right of "Shadow Device" #ivory 
+{
+    "temperature": 45
+}
+endnote
+  
+note over "Original Device", "Shadow Device" #Aqua
+Original Device & Shadow Device continue to stay synchronized
+endnote 
+
+@enduml

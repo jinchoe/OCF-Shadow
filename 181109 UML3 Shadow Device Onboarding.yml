@@ -1,0 +1,163 @@
+@startuml
+
+title __Shadow Device Onboarding__
+
+|||
+
+participant OBT 
+participant "Original Device"
+participant "Shadow Generation \nResource" 
+participant "Shadow Device" 
+box "Shadow Service" #White
+participant "Shadow Generation \nResource"
+participant "Shadow Device"
+end box
+
+== 3.1) Acquire information about Shadow Device == 
+
+note over "OBT", "Original Device" #Aqua
+OBT accesses "oic.wk.shadow.conf" of Original Device
+to obtain the information of its Shadow Device
+endnote  
+
+OBT -> "Original Device": GET /oic/shadow/conf  
+
+"Original Device" --> OBT: Response with payload 
+
+note left of "Original Device" #ivory
+{
+   "si": "Shadow_Service_ID",
+   "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
+   "sgi": true,
+   "sdi": "Shadow_Device_ID",     
+   "sde": ["coaps://[fe80::b1d6]:2222"],
+   "isSynched": false,     
+   "lastSyncTimestamp": 1124000111
+}
+endnote 
+ 
+== 3.2) Shadow Device Ownership == 
+
+note over "OBT", "Shadow Device" #Aqua
+OBT utilizes an endpoint in the "sde" property of the Original Device's
+"oic.wk.shadow.conf" to access /oic/res on the Shadow Device through which
+it discovers the Shadow Device's Secure Virtual Resources (SVR)
+endnote   
+
+OBT <-> "Shadow Device": Execute OTM sequence
+
+note over OBT, "Shadow Device": OBT follows existing onboarding procedures
+
+== 3.3) Credential/ACL Provisioning on Original Device & Shadow Device == 
+
+note over "OBT", "Shadow Device" #Aqua
+OBT appropriately provisions the Original Device & Shadow Device to enable secure 
+communications between the two 
+endnote   
+
+note left of "OBT"
+OBT constructs appropriate credential 
+(e.g. pairwise symmetric key)
+endnote 
+
+OBT -> "Shadow Device": Provision credential
+
+note over OBT, "Shadow Device"  
+OBT provisions a credential to Shadow Device using existing procedures
+citing Original Device's UUID as the subjectuuid
+endnote 
+
+"Shadow Device" --> OBT: Response: OK 
+
+OBT -> "Shadow Device": Provision ACE
+
+note over OBT, "Shadow Device"  
+OBT provisions an ACE in Shadow Device's acl2 using existing procedures 
+granting Original Device access to its /oic/shadow/sync
+endnote 
+ 
+"Shadow Device" --> OBT: Response: OK  
+
+OBT -> "Original Device": Provision credential 
+
+note over OBT, "Shadow Device"  
+OBT provisions a credential to Original Device using existing procedures
+citing Shadow Device's UUID as the subjectuuid
+endnote 
+
+"Original Device" --> OBT: Response: OK 
+ 
+OBT -> "Original Device": Provision ACE
+
+note over OBT, "Shadow Device"  
+OBT provisions an ACE in Original Device's acl2 using existing procedures 
+granting Shadow Device access to its /oic/shadow/sync
+endnote 
+ 
+== 3.4) Activate Synchronization ==  
+ 
+note over "OBT", "Shadow Device" #Aqua
+OBT signals the Original and Shadow Devices that they may start synchronizing
+with each other by setting isSynched to "true"
+endnote
+
+OBT -> "Original Device": POST /oic/shadow/conf 
+
+note right of OBT #ivory 
+{
+  "isSynched": true
+}
+endnote 
+
+note right of "Original Device"
+Original Device modifies its "oic.wk.shadow.conf"
+endnote 
+
+note right of "Original Device" #ivory
+{
+   "rt": ["oic.wk.shadow.conf"],
+   "if": ["oic.if.rw", "oic.if.baseline"],
+   "si": "Shadow_Service_ID",
+   "sgr": "coaps://[fe80::b1d6]:1111/oic/shadow/gen",
+   "sgi": true,
+   "sdi": "Shadow_Device_ID",     
+   "sde": ["coaps://[fe80::b1d6]:2222"],
+   "isSynched": true,     
+   "lastSyncTimestamp": 1124000111
+}
+endnote 
+
+"Original Device" --> OBT: Response: OK
+
+OBT -> "Shadow Device": POST /oic/shadow/info 
+ 
+note right of OBT 
+{
+  "isSynched": true      
+}
+endnote 
+
+note right of "Shadow Device"
+Shadow Device modifies its "oic.wk.shadow.info"
+endnote 
+
+note right of "Shadow Device" #ivory 
+{
+  "rt": ["oic.wk.shadow.info"],
+  "if": ["oic.if.rw", "oic.if.baseline"],
+  "odi": "original_Device_ID",
+  "ode": ["coaps://[fe80::b1e6]:55555"],
+  "isSynched": true
+  "lastSyncTimestamp": 1124000111        
+}
+endnote 
+
+"Shadow Device" --> OBT: Response: OK 
+ 
+note over "OBT", "Shadow Device" #Aqua
+Now that the Original Device & Shadow Device are linked via the OBT, 
+they are fully set up to synchronize their states securely between
+each other
+endnote 
+
+@enduml
